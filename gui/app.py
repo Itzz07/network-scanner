@@ -1,10 +1,11 @@
 import tkinter as tk
 from tkinter import scrolledtext, ttk
 from datetime import datetime
-from scanner.core import full_scan
+from scanner.core import full_scan, get_local_subnet, get_my_info
 import threading
 
-DEFAULT_SUBNET = '192.168.1.0/24'
+
+DEFAULT_SUBNET = get_local_subnet()
 
 def start_gui():
     def run_scan():
@@ -14,11 +15,24 @@ def start_gui():
         results = full_scan(subnet)
         display_results(results)
 
+    # def display_results(results):
+    #     output_box.insert(tk.END, f"Scan complete at {datetime.now()}.\n\n")
+    #     for dev in results:
+    #         output_box.insert(tk.END,
+    #             f"IP: {dev['ip']}\nMAC: {dev['mac']}\nVendor: {dev['vendor']}\n"
+    #             f"OS: {dev['os']}\nPorts: {dev['open_ports']}\n\n"
+    #         )
     def display_results(results):
         output_box.insert(tk.END, f"Scan complete at {datetime.now()}.\n\n")
+
         for dev in results:
+            if dev['ip'] == your_ip or dev['mac'].lower() == your_mac.lower():
+                label = " (YOU)"
+            else:
+                label = ""
+
             output_box.insert(tk.END,
-                f"IP: {dev['ip']}\nMAC: {dev['mac']}\nVendor: {dev['vendor']}\n"
+                f"IP: {dev['ip']}{label}\nMAC: {dev['mac']}\nVendor: {dev['vendor']}\n"
                 f"OS: {dev['os']}\nPorts: {dev['open_ports']}\n\n"
             )
 
@@ -35,12 +49,22 @@ def start_gui():
     root.title("Python Network Scanner")
     root.geometry("750x550")
     root.configure(bg="#1e1e1e")
-
+ 
     # Styling
     style = ttk.Style()
     style.theme_use('clam')
     style.configure("TLabel", foreground="white", background="#1e1e1e", font=('Segoe UI', 10))
     style.configure("TButton", font=('Segoe UI', 10), padding=6)
+
+    # Get host details
+    my_info = get_my_info()
+    your_ip = my_info['ip']
+    your_mac = my_info['mac']
+    hostname = my_info['hostname']
+
+    ttk.Label(root, text=f"Your Hostname: {hostname}").pack()
+    ttk.Label(root, text=f"Your IP: {your_ip}").pack()
+    ttk.Label(root, text=f"Your MAC: {your_mac}\n").pack()
 
     # Subnet input
     ttk.Label(root, text="Subnet (e.g., 192.168.1.0/24):").pack(pady=5)

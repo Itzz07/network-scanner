@@ -1,8 +1,11 @@
+import ipaddress
 from scapy.all import ARP, Ether, srp, IP, ICMP
 import socket
 from tqdm import tqdm
 from .mac_lookup import get_mac_vendor
 from .logger import log_csv
+import socket
+import uuid
 
 COMMON_PORTS = [22, 80, 443, 3389, 8080]
 
@@ -15,6 +18,22 @@ def guess_os(ttl):
         return "Cisco / Router"
     else:
         return "Unknown"
+    
+def get_local_subnet():
+    ip = socket.gethostbyname(socket.gethostname())
+    return str(ipaddress.ip_network(f"{ip}/24", strict=False))
+
+def get_my_info():
+    hostname = socket.gethostname()
+    ip_address = socket.gethostbyname(hostname)
+    mac_address = ':'.join(['{:02x}'.format((uuid.getnode() >> ele) & 0xff)
+                            for ele in range(0,8*6,8)][::-1])
+    return {
+        'hostname': hostname,
+        'ip': ip_address,
+        'mac': mac_address
+    }
+
 
 def scan_network(subnet):
     arp = ARP(pdst=subnet)
