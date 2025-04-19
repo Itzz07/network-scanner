@@ -1,5 +1,6 @@
+from datetime import datetime
 import ipaddress
-from scapy.all import ARP, Ether, srp, IP, ICMP
+from scapy.all import ARP, Ether, srp, IP, ICMP, sr1
 import socket
 from tqdm import tqdm
 from .mac_lookup import get_mac_vendor
@@ -55,35 +56,84 @@ def scan_network(subnet):
         })
     return devices
 
+# def get_ttl(ip):
+#     try:
+#         pkt = IP(dst=ip)/ICMP()
+#         resp = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/pkt, timeout=2, verbose=0)[0]
+#         if resp:
+#             return resp[0][1].ttl
+#     except:
+#         pass
+#     return 0
+
 def get_ttl(ip):
     try:
         pkt = IP(dst=ip)/ICMP()
-        resp = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/pkt, timeout=2, verbose=0)[0]
+        resp = sr1(pkt, timeout=2, verbose=0)
         if resp:
-            return resp[0][1].ttl
+            return resp.ttl
     except:
         pass
     return 0
 
+# def scan_ports(ip):
+#     open_ports = []
+#     for port in COMMON_PORTS:
+#         try:
+#             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#             sock.settimeout(0.5)
+#             if sock.connect_ex((ip, port)) == 0:
+#                 open_ports.append(port)
+#             sock.close()
+#         except:
+#             pass
+#     return open_ports
+
 def scan_ports(ip):
     open_ports = []
     for port in COMMON_PORTS:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.5)
         try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(0.5)
             if sock.connect_ex((ip, port)) == 0:
                 open_ports.append(port)
-            sock.close()
         except:
             pass
+        finally:
+            sock.close()
     return open_ports
+
+# def full_scan(subnet):
+#     devices = scan_network(subnet)
+#     for device in tqdm(devices, desc="Scanning Ports"):
+#         device['open_ports'] = scan_ports(device['ip'])
+#         log_csv(device['ip'], device['mac'], device['vendor'], device['open_ports'], device['os'])
+#     return devices
 
 def full_scan(subnet):
     devices = scan_network(subnet)
-    for device in tqdm(devices, desc="Scanning Ports"):
-        device['open_ports'] = scan_ports(device['ip'])
-        log_csv(device['ip'], device['mac'], device['vendor'], device['open_ports'], device['os'])
-    return devices
+    scanned_devices = []
+
+    for device in tqdm(devices, desc="Scanning Ports", ncols=80, colour='green'):
+        try:
+            ip = device['ip']
+            open_ports = scan_ports(ip)
+            device['open_ports'] = open_ports
+
+            log_csv(
+                ip=ip,
+                mac=device.get('mac', 'N/A'),
+                vendor=device.get('vendor', 'Unknown'),
+                open_ports=open_ports,
+                os_guess=device.get('os', 'Unknown')
+            )
+
+            scanned_devices.append(device)
+        except Exception as e:
+            print(f"[!] Error scanning {device.get('ip', 'unknown')}: {e}")
+    
+    return scanned_devices
+
 
 
 # from scapy.all import ARP, Ether, srp
